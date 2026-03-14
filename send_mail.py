@@ -1,41 +1,36 @@
 import smtplib
 import os
 import random
-import datetime
 from google import genai # import文が変わります
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-def generate_study_material():
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set.")
-
+def generate_eiken_pre1_prompt():
+    """
+    英検準1級対策用の学習コンテンツ生成プロンプトをランダムな組み合わせで作成する。
+    戻り値: str (AIへの入力用プロンプト)
+    """
     # --- バリエーションの設定 ---
     topics = [
-        "基礎理論（浮動小数点、キュー・スタック）",
-        "コンピュータ構成要素（キャッシュメモリ、パイプライン）",
-        "システム構成要素（RAID、稼働率計算）",
-        "データベース（第3正規化、SQL）",
-        "ネットワーク（OSI参照モデル、TCP/IP、DNS）",
-        "セキュリティ（共通鍵・公開鍵、サイバー攻撃手法）",
-        "システム開発（アジャイル、テスト手法）",
-        "プロジェクトマネジメント（アローダイアグラム、EVM）",
-        "サービスマネジメント（ITIL、SLA）",
-        "経営戦略・法務（SWOT分析、損益分岐点、著作権）"
+        "社会・経済（少子高齢化、格差社会、労働環境）",
+        "科学・テクノロジー（AI、再生可能エネルギー、宇宙開発）",
+        "環境・自然（気候変動、生物多様性、リサイクル）",
+        "文化・教育（異文化理解、オンライン教育、伝統保存）",
+        "ビジネス（リモートワーク、リーダーシップ、マーケティング）",
+        "医療・健康（公衆衛生、メンタルヘルス、先端医療）"
     ]
     
     levels = [
-        "初級（午前試験の頻出用語）",
-        "中級（午前試験の計算・応用）",
-        "上級（午後試験を見据えた多角的な解説）"
+        "単語・熟語（パス単レベルの語彙力強化）",
+        "長文読解・文脈判断（段落の趣旨や論理展開の把握）",
+        "英作文・二次対策（論理的な意見構築と表現力）"
     ]
     
     styles = [
-        "4択クイズ形式",
-        "穴埋め形式",
-        "記述式（40字以内での説明を求める）",
-        "「誤っているものを選べ」というひっかけ形式"
+        "語句選択形式（空所に最も適切な語を選ぶ）",
+        "パラフレーズ形式（同じ意味になるように言い換える）",
+        "要約・記述形式（ポイントを30語程度の英語でまとめる）",
+        "論点指摘形式（提示された意見のメリット・デメリットを述べる）"
     ]
 
     # ランダムに組み合わせて「今日のお題」を決定
@@ -45,19 +40,37 @@ def generate_study_material():
 
     # --- プロンプトの組み立て ---
     prompt = f"""
-    あなたは応用情報技術者試験の専門講師です。
-    以下の設定で、最高の学習コンテンツを1つ作成してください。
-    
-    【設定】
-    - テーマ: {topic}
-    - 難易度: {level}
-    - 出題形式: {style}
-    
-    【構成案】
-    1. **解説**: そのテーマで最も重要な点を2つ、実務に即して解説。
-    2. **問題**: 設定された形式で1問出題。
-    3. **解答と詳細解説**: なぜその答えになるか、他の選択肢がなぜ違うかを論理的に説明。
-    """
+あなたは英検準1級対策の専門講師です。
+合格に必要な「ハイレベルな語彙」と「論理的思考」を養う最高の学習コンテンツを1つ作成してください。
+
+【設定】
+- テーマ: {topic}
+- 重点項目: {level}
+- 出題形式: {style}
+
+【構成案】
+1. **Key Insight**: 
+   そのテーマでよく使われる英検準1級レベルの重要語彙やフレーズを2つピックアップし、
+   単なる意味だけでなく、文脈での使い方やニュアンスを英語と日本語で解説してください。
+
+2. **Challenge Question**: 
+   設定された形式で1問出題してください。
+   （長文や選択肢は、実際の試験の難易度・トーンを再現すること）
+
+3. **Deep Analysis**: 
+   解答、日本語訳、および解説。
+   特に「なぜその語・表現が最適なのか」「正解に至る論理的プロセス」を重点的に説明してください。
+   また、関連して覚えておくべき類義語や反意語も提示してください。
+""".strip()
+
+    return prompt
+
+def generate_study_material():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not set.")
+
+    prompt = generate_eiken_pre1_prompt()
 
     # 【重要】 vertexai=False を指定することで、
     # Google AI Studio の API キーモードであることを明示します
@@ -84,7 +97,7 @@ def send_mail():
     msg = MIMEMultipart()
     msg['From'] = gmail_user
     msg['To'] = to_email
-    msg['Subject'] = "応用情報 学習コンテンツ"
+    msg['Subject'] = "英検準1級 学習コンテンツ"
 
     body = generate_study_material()
     msg.attach(MIMEText(body, 'plain'))
