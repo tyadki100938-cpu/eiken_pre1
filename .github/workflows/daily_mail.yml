@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read    # コードの読み取り権限
+      issues: write     # Issueを作成・書き込みする権限
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
