@@ -4,6 +4,43 @@ import random
 from google import genai # import文が変わります
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from googleapiclient.discovery import build
+from datetime import datetime, timedelta, timezone
+
+# --- YouTube動画取得関数 ---
+def get_youtube_videos(query, max_results=3):
+    api_key = os.getenv('YOUTUBE_API_KEY') # GitHub Secretsに登録してください
+    if not api_key:
+        return "（YouTube APIキーが設定されていません）"
+
+    try:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+        
+        # 過去24時間以内の動画を取得
+        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+        
+        request = youtube.search().list(
+            q=query,
+            part='snippet',
+            type='video',
+            publishedAfter=yesterday.isoformat(),
+            maxResults=max_results,
+            order='relevance'
+        )
+        res = request.execute()
+        
+        videos = []
+        for item in res.get('items', []):
+            title = item['snippet']['title']
+            v_id = item['id']['videoId']
+            videos.append(f"・{title}\n  https://www.youtube.com/watch?v={v_id}")
+        
+        if not videos:
+            return "本日の新しい動画は見つかりませんでした。"
+            
+        return "\n".join(videos)
+    except Exception as e:
+        return f"動画の取得中にエラーが発生しました: {e}"
 
 def generate_eiken_pre1_prompt():
     """
@@ -49,8 +86,24 @@ def send_mail():
     msg['To'] = to_email
     msg['Subject'] = "英語 学習コンテンツ"
 
-    body = generate_study_material()
-    msg.attach(MIMEText(body, 'plain'))
+    # 1. 従来の学習コンテンツを生成
+    study_content = generate_study_material()
+
+    # 2. YouTubeから関連動画（例：応用情報技術者）を取得
+    # クエリは自由に変更してください
+    video_content = get_youtube_videos("英検準１級解説", max_results=3)
+
+    # 3. 本文を結合
+    full_body = f"""
+    {study_content}
+
+    --------------------------------------------------
+    【本日の関連動画】
+    {video_content}
+    --------------------------------------------------
+    """
+
+    msg.attach(MIMEText(full_body, 'plain'))
 
     try:
         # GmailのSMTPサーバーに接続
@@ -64,7 +117,7 @@ def send_mail():
     
     # 結果をファイルに保存（GitHub ActionsでIssueにするため）
     with open("result.md", "w", encoding="utf-8") as f:
-        f.write(body)
+        f.write(full_body)
 
 if __name__ == "__main__":
     send_mail()
